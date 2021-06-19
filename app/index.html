@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" href="css/all.min.css" />
+    <link rel="stylesheet" href="css/materialize.min.css" />
+    <link rel="stylesheet" href="css/style.css" />
+    <title>ImageShrink</title>
+  </head>
+  <body>
+    <div class="container center-align">
+      <h3><i class="fas fa-images"></i> ImageShrink</h3>
+      <p>Choose an image to resize</p>
+      <form id="image-form">
+        <div class="file-field input-field">
+          <div class="btn">
+            <span>Browse</span>
+            <input type="file" id="img" accept="image/*" multiple/>
+          </div>
+
+          <div class="file-path-wrapper">
+            <input
+              class="file-path validate"
+              type="text"
+              placeholder="Upload file"
+            />
+          </div>
+        </div>
+
+        <p>
+          <strong>Quality:</strong>
+          <em>The lower the quality, the smaller the filesize</em>
+        </p>
+        <p class="range-field">
+          <input type="range" id="slider" min="0" max="100" />
+        </p>
+
+        <input type="submit" class="black btn" value="Resize" />
+      </form>
+
+      <div class="card output">
+        <div class="card-content">
+          <div class="file-field input-field">
+            <div class="btn">
+              <span>切换保存目录</span>
+              <input type="file" id="changeSave"  webkitdirectory
+              directory=""
+              nwdirectory="">
+            </div>
+            <div class="file-path-wrapper">
+              <input class="file-path validate" type="hidden" >
+            </div>
+          </div>
+          默认目录: <span id="output-path"></span>
+          <p>(没有该目录需建立imageShrink的文件夹)</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/materialize.min.js"></script>
+    <script>
+      const path = require("path");
+      const os = require("os");
+      const { ipcRenderer } = require("electron");
+      const form = document.getElementById("image-form");
+      const slider = document.getElementById("slider");
+      const img = document.getElementById("img");
+      const save = document.getElementById("changeSave");
+      let savePath = path.join(
+        os.homedir(),
+        "imageShrink"
+      );
+      document.getElementById("output-path").innerText =savePath;
+      save.onclick = function(e){
+        if(e.path[0].files.length>0){
+          save.value = '';
+        }
+        // console.log(e.path[0].files.length);
+      };
+      save.onchange = function(e){
+        const one = e.path[0].files[0]
+        const start = one.path.split("\\");
+        const end = one.webkitRelativePath.split("/")
+        const index = start.indexOf(end[0])
+        if(index!==-1){
+          const newArr = [...start]
+          newArr.length = index+1;
+          savePath = newArr.join("//")
+          document.getElementById("output-path").innerText = savePath;
+        }
+
+      };
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const imagePath = img.files[0].path;
+        const quality = slider.value;
+        let newArr = []
+        newArr = Object.keys(img.files).map(item=>{
+          let arrs = img.files[item].path.split("\\");
+          return {
+            imagePath:arrs.join('/'),
+            quality,
+            savePath
+          }
+        });
+        console.log(newArr)
+        // console.log(img.files)
+        ipcRenderer.send("image:miniSize", newArr);
+      });
+
+      ipcRenderer.on("image:done", () => {
+        M.toast({ html: `Image resized to ${slider.value}% quality` });
+      });
+    </script>
+  </body>
+</html>
